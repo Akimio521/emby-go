@@ -1,0 +1,52 @@
+---
+name: Update API
+
+on:
+  schedule:
+    - cron: "0 0 * * 5"
+  workflow_dispatch:
+
+jobs:
+  generate:
+    # depending on default permission settings for your org (contents being read-only or read-write for workloads), you will have to add permissions
+    # see: https://docs.github.com/en/actions/security-guides/automatic-token-authentication#modifying-the-permissions-for-the-github_token
+    permissions:
+      contents: write
+      pull-requests: write
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+      - name: Generate
+        id: generate
+        run: |
+          set -xue
+          npm install @openapitools/openapi-generator-cli -g
+          make load
+          make generate
+          git add --all
+          set +o pipefail # it should not stop on failure
+          echo "changed=$(git diff --cached --exit-code >/dev/null 2>&1 || echo $?)" >> "$GITHUB_OUTPUT"
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Go mod tidy
+        run: go mod tidy
+      - name: Create pull request
+        if: ${{ steps.generate.outputs.changed == '1' }}
+        run: |
+          set -xueo pipefail
+          t=$(date +%s)
+          git checkout -b $t
+          git commit -am "Auto-Update"
+          git push origin $t
+          gh pr create --base main --head $t --title 'Auto-Update' --body 'Created by Update Action'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

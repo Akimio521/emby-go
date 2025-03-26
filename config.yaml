@@ -1,0 +1,14 @@
+inputSpec: openapi.json
+generatorName: go
+outputDir: api
+gitUserId: Akimio521
+gitRepoId: emby-go
+additionalProperties:
+  enumClassPrefix: true
+  generateInterfaces: true
+  packageName: api
+  withGoMod: false
+  isGoSubmodule: true
+openapiGeneratorIgnoreList:
+  - configuration.go
+  - test/
